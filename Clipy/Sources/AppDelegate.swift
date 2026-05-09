@@ -152,6 +152,10 @@ class AppDelegate: NSObject, NSMenuItemValidation {
     }
 
     private func toggleAddingToLoginItems(_ isEnable: Bool) {
+        // LSSharedFileList is no longer supported on recent macOS and can crash at launch.
+        // Keep the app usable; startup item management needs a modern SMAppService rewrite.
+        return
+
         let appPath = Bundle.main.bundlePath
         LoginServiceKit.removeLoginItems(at: appPath)
         guard isEnable else { return }
