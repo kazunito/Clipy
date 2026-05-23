@@ -18,14 +18,15 @@ NOTARY_PROFILE="${NOTARY_PROFILE:-}"
 rm -rf "$DIST_DIR"
 mkdir -p "$STAGING_DIR"
 
-bundle exec pod install
-
 xcodebuild \
-  -workspace Clipy.xcworkspace \
+  -project Clipy.xcodeproj \
   -scheme Clipy \
   -configuration "$CONFIGURATION" \
   -destination 'platform=macOS,arch=arm64' \
   -derivedDataPath "$DERIVED_DATA_PATH" \
+  -skipPackagePluginValidation \
+  ARCHS=arm64 \
+  ONLY_ACTIVE_ARCH=NO \
   CODE_SIGNING_ALLOWED=NO \
   build
 
