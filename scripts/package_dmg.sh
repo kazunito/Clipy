@@ -27,6 +27,7 @@ xcodebuild \
   -skipPackagePluginValidation \
   ARCHS=arm64 \
   ONLY_ACTIVE_ARCH=NO \
+  ENABLE_TESTABILITY=YES \
   CODE_SIGNING_ALLOWED=NO \
   build
 
@@ -36,6 +37,13 @@ if [[ ! -d "$APP_PATH" ]]; then
 fi
 
 cp -R "$APP_PATH" "$STAGED_APP_PATH"
+
+rm -rf "$STAGED_APP_PATH/Contents/PlugIns"
+for fw in XCTest XCTestCore XCTestSupport XCTAutomationSupport XCUIAutomation XCUnit Testing; do
+  rm -rf "$STAGED_APP_PATH/Contents/Frameworks/${fw}.framework"
+done
+rm -f "$STAGED_APP_PATH/Contents/Frameworks/libXCTestBundleInject.dylib"
+rm -f "$STAGED_APP_PATH/Contents/Frameworks/libXCTestSwiftSupport.dylib"
 
 if [[ "$CODE_SIGN_IDENTITY" == "-" ]]; then
   codesign --force --deep --sign - "$STAGED_APP_PATH"
