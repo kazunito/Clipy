@@ -41,6 +41,7 @@ class AppDelegate: NSObject, NSMenuItemValidation {
         prepareDependencies { values in
             try! values.bootstrapDatabase()
         }
+        RealmSnippetImporter.importIfNeeded()
     }
 
     // MARK: - NSMenuItem Validation
