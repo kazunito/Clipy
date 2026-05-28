@@ -25,6 +25,7 @@ xcodebuild \
   -destination 'platform=macOS,arch=arm64' \
   -derivedDataPath "$DERIVED_DATA_PATH" \
   -skipPackagePluginValidation \
+  -skipMacroValidation \
   ARCHS=arm64 \
   ONLY_ACTIVE_ARCH=NO \
   ENABLE_TESTABILITY=YES \
