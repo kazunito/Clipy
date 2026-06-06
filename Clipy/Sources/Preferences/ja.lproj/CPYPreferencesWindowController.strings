@@ -9,7 +9,7 @@
 "N5e-ba-0Q0.title" = "アップデート";
 
 /* Class = "NSTextFieldCell"; title = "No Pane is Selected."; ObjectID = "Vy6-Ui-lLf"; */
-"Vy6-Ui-lLf.title" = "No Pane is Selected.";
+"Vy6-Ui-lLf.title" = "パネルが選択されていません。";
 
 /* Class = "NSTextFieldCell"; title = "Type"; ObjectID = "avh-w8-RcC"; */
 "avh-w8-RcC.title" = "対応形式";

@@ -3,7 +3,7 @@
 "Ett-SG-3wO.title" = "インポート";
 
 /* Class = "NSTextFieldCell"; title = "Text"; ObjectID = "J4q-sY-gcS"; */
-"J4q-sY-gcS.title" = "";
+"J4q-sY-gcS.title" = "テキスト";
 
 /* Class = "NSTextFieldCell"; title = "Delete"; ObjectID = "Lxb-5c-zOc"; */
 "Lxb-5c-zOc.title" = "削除";
