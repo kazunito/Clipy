@@ -71,8 +71,8 @@ Pods/
 Carthage/Build/
 
 # Accio dependency management
-Dependencies/
-.accio/
+# Dependencies/
+# .accio/
 
 # fastlane
 #
@@ -159,3 +159,6 @@ build-iPhoneSimulator/
 # Claude Code
 .claude/
 CLAUDE.md
+
+# Firebase
+GoogleService-Info.plist

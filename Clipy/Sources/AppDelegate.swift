@@ -14,7 +14,6 @@ import Cocoa
 import Dependencies
 import LoginServiceKit
 import Magnet
-import RealmSwift
 import RxCocoa
 import RxSwift
 import Screeen
@@ -27,37 +26,35 @@ class AppDelegate: NSObject, NSMenuItemValidation {
     private(set) var updaterController: SPUStandardUpdaterController?
     private let screenshotObserver = ScreenShotObserver()
     private let disposeBag = DisposeBag()
+    private let historyPruningScheduler = SerialDispatchQueueScheduler(qos: .utility)
 
     @Dependency(\.context)
     var context
+    @Dependency(\.pasteboardHistoryRepository)
+    private var pasteboardHistoryRepository
     @Dependency(\.snippetRepository)
     private var snippetRepository
+    private let migration = DatabaseMigration()
 
     // MARK: - Init
     override func awakeFromNib() {
         super.awakeFromNib()
-        // Migrate Realm
-        Realm.migration()
+        // If the SQLite database file does not exist yet, start the database and then migrate Realm data to SQLiteData.
+        let sqliteDatabaseExists = (try? SQLiteDataDatabase.databaseURL().checkResourceIsReachable()) ?? false
         prepareDependencies { values in
             try! values.bootstrapDatabase()
+            if !sqliteDatabaseExists {
+                migration.migrateFromRealmToSQLiteData()
+            }
         }
-        RealmSnippetImporter.importIfNeeded()
     }
 
     // MARK: - NSMenuItem Validation
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
         if menuItem.action == #selector(AppDelegate.clearAllHistory) {
-            let realm = try! Realm()
-            return !realm.objects(CPYClip.self).isEmpty
+            return pasteboardHistoryRepository.hasHistories()
         }
         return true
-    }
-
-    // MARK: - Class Methods
-    static func storeTypesDictinary() -> [String: NSNumber] {
-        var storeTypes = [String: NSNumber]()
-        CPYClipData.availableTypesString.forEach { storeTypes[$0] = NSNumber(value: true) }
-        return storeTypes
     }
 
     // MARK: - Menu Actions
@@ -100,20 +97,12 @@ class AppDelegate: NSObject, NSMenuItemValidation {
     }
 
     @objc func selectClipMenuItem(_ sender: NSMenuItem) {
-        CPYUtilities.sendCustomLog(with: "selectClipMenuItem")
-        guard let primaryKey = sender.representedObject as? String else {
-            CPYUtilities.sendCustomLog(with: "Cannot fetch clip primary key")
-            NSSound.beep()
-            return
-        }
-        let realm = try! Realm()
-        guard let clip = realm.object(ofType: CPYClip.self, forPrimaryKey: primaryKey) else {
-            CPYUtilities.sendCustomLog(with: "Cannot fetch clip data")
+        guard let id = sender.representedObject as? PasteboardHistory.ID, let content = pasteboardHistoryRepository.fetchContent(id: id) else {
             NSSound.beep()
             return
         }
 
-        AppEnvironment.current.pasteService.paste(with: clip)
+        AppEnvironment.current.pasteService.paste(id: id, content: content)
     }
 
     @objc func selectSnippetMenuItem(_ sender: AnyObject) {
@@ -201,7 +190,6 @@ extension AppDelegate: NSApplicationDelegate {
 
         // Services
         AppEnvironment.current.clipService.startMonitoring()
-        AppEnvironment.current.dataCleanService.startMonitoring()
         AppEnvironment.current.excludeAppService.startMonitoring()
         AppEnvironment.current.hotKeyService.setupDefaultHotKeys()
 
@@ -209,6 +197,14 @@ extension AppDelegate: NSApplicationDelegate {
         AppEnvironment.current.menuManager.setup()
         // Screenshot
         screenshotObserver.delegate = self
+
+        // Clean histories every 30 minutes
+        Observable<Int>.interval(.seconds(60 * 30), scheduler: historyPruningScheduler)
+            .subscribe(onNext: { [weak self] _ in
+                let maxHistorySize = AppEnvironment.current.defaults.integer(forKey: Constants.UserDefaults.maxHistorySize)
+                self?.pasteboardHistoryRepository.deleteOverflowingHistories(maxHistorySize: maxHistorySize)
+            })
+            .disposed(by: disposeBag)
     }
 
 }
