@@ -46,6 +46,29 @@ done
 rm -f "$STAGED_APP_PATH/Contents/Frameworks/libXCTestBundleInject.dylib"
 rm -f "$STAGED_APP_PATH/Contents/Frameworks/libXCTestSwiftSupport.dylib"
 
+# Embed SPM dynamic frameworks that are linked via @rpath but not auto-embedded
+# by Xcode (e.g. IssueReporting / IssueReportingPackageSupport from pointfree
+# deps). Without these the app crashes at launch with a dyld
+# "Library not loaded: @rpath/...framework" error. Resolve transitively.
+PACKAGE_FRAMEWORKS="$DERIVED_DATA_PATH/Build/Products/$CONFIGURATION/PackageFrameworks"
+FRAMEWORKS_DIR="$STAGED_APP_PATH/Contents/Frameworks"
+
+embed_rpath_frameworks() {
+  local binary="$1" ref fw dest
+  while read -r ref; do
+    fw=$(printf '%s\n' "$ref" | sed -E 's#@rpath/([^/]+\.framework)/.*#\1#')
+    [[ "$fw" == *.framework ]] || continue
+    dest="$FRAMEWORKS_DIR/$fw"
+    if [[ ! -e "$dest" && -e "$PACKAGE_FRAMEWORKS/$fw" ]]; then
+      echo "Embedding $fw"
+      cp -R "$PACKAGE_FRAMEWORKS/$fw" "$dest"
+      embed_rpath_frameworks "$dest/${fw%.framework}"
+    fi
+  done < <(otool -L "$binary" 2>/dev/null | awk '/@rpath\/.*\.framework\//{print $1}')
+}
+
+embed_rpath_frameworks "$STAGED_APP_PATH/Contents/MacOS/Clipy"
+
 if [[ "$CODE_SIGN_IDENTITY" == "-" ]]; then
   codesign --force --deep --sign - "$STAGED_APP_PATH"
 else
