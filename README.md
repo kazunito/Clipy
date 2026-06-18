@@ -38,7 +38,7 @@ For this reason, the default signing settings use the Clipy signing certificate.
 If you want to use Firebase features, place your own `GoogleService-Info.plist` in `Clipy/GoogleService`. This file is not required for local builds without Firebase.
 
 ### Installing the prebuilt Apple Silicon build
-The GitHub Releases of this fork are ad-hoc signed arm64 builds (not notarized by Apple).
+The GitHub Releases of this fork are arm64 builds signed with a stable self-signed certificate (not notarized by Apple).
 
 1. Open the `.dmg` and drag `Clipy.app` into `Applications` (replace any existing copy).
 2. Launch Clipy. On macOS 15 Sequoia or later it is blocked on first launch: open
@@ -46,7 +46,10 @@ The GitHub Releases of this fork are ad-hoc signed arm64 builds (not notarized b
    for Clipy, then launch it again. (On older macOS, right-click the app and choose **Open**.)
 3. Grant Accessibility: **System Settings → Privacy & Security → Accessibility**. If an entry
    from an earlier build already exists, remove it first, then add and enable `Clipy.app`.
-   Because the build is ad-hoc signed, the permission may need to be re-granted after each update.
+   Because every release is signed with the same stable certificate, the Accessibility permission
+   persists across updates and does not need to be re-granted. (If you build locally, sign with a
+   stable self-signed certificate via `CODE_SIGN_IDENTITY` when running `scripts/package_dmg.sh`;
+   a plain ad-hoc build would require re-granting after each rebuild.)
 
 ### Localization Contributors
 Clipy is looking for localization contributors.  

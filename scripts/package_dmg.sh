@@ -71,8 +71,15 @@ embed_rpath_frameworks "$STAGED_APP_PATH/Contents/MacOS/Clipy"
 
 if [[ "$CODE_SIGN_IDENTITY" == "-" ]]; then
   codesign --force --deep --sign - "$STAGED_APP_PATH"
-else
+elif [[ -n "$NOTARY_PROFILE" ]]; then
+  # Developer ID + notarization: hardened runtime + secure timestamp required
   codesign --force --deep --sign "$CODE_SIGN_IDENTITY" --options runtime --timestamp "$STAGED_APP_PATH"
+else
+  # Self-signed local identity: stable Designated Requirement (leaf cert) so the
+  # Accessibility/TCC grant persists across rebuilds. No hardened runtime
+  # (self-signed library validation would block the embedded @rpath SPM
+  # frameworks) and no secure timestamp (not notarizing).
+  codesign --force --deep --sign "$CODE_SIGN_IDENTITY" "$STAGED_APP_PATH"
 fi
 codesign --verify --deep --strict --verbose=2 "$STAGED_APP_PATH"
 
@@ -87,8 +94,13 @@ hdiutil create \
   -format UDZO \
   "$DMG_PATH"
 
-if [[ "$CODE_SIGN_IDENTITY" != "-" ]]; then
+if [[ "$CODE_SIGN_IDENTITY" == "-" ]]; then
+  : # ad-hoc: leave the dmg unsigned
+elif [[ -n "$NOTARY_PROFILE" ]]; then
   codesign --force --sign "$CODE_SIGN_IDENTITY" --timestamp "$DMG_PATH"
+else
+  # Self-signed, no notarization: sign without a secure timestamp
+  codesign --force --sign "$CODE_SIGN_IDENTITY" "$DMG_PATH"
 fi
 
 if [[ -n "$NOTARY_PROFILE" ]]; then

@@ -8,6 +8,10 @@ UPSTREAM_REMOTE="${UPSTREAM_REMOTE:-upstream}"
 UPSTREAM_BRANCH="${UPSTREAM_BRANCH:-develop}"
 LOCAL_BRANCH="${LOCAL_BRANCH:-develop}"
 ORIGIN_REPO="${ORIGIN_REPO:-kazunito/Clipy}"
+# Sign releases with a stable self-signed identity by default so the macOS
+# Accessibility (TCC) grant persists across updates. Override with CODE_SIGN_IDENTITY=-
+# for a plain ad-hoc build. The named identity must exist in the login keychain.
+export CODE_SIGN_IDENTITY="${CODE_SIGN_IDENTITY:-Clipy Self}"
 
 # ---------- 事前チェック ----------
 CURRENT_BRANCH="$(git rev-parse --abbrev-ref HEAD)"
@@ -82,11 +86,15 @@ git push origin "$NEW_TAG"
 # ---------- リリース作成 ----------
 echo "==> Creating GitHub release on $ORIGIN_REPO..."
 NOTES=$(cat <<EOF
-Apple Silicon (arm64) 専用ビルド
+Apple Silicon (arm64) 専用ビルド（安定した自己署名証明書で署名・Apple 公証なし）
 
 ## インストール方法
-1. dmg を開き、Clipy.app を Applications にドラッグ
-2. 初回起動時は Finder で Clipy.app を右クリック →「開く」（ad-hoc 署名のため）
+1. dmg を開き、Clipy.app を Applications にドラッグ（既存があれば置き換え）
+2. 初回起動はブロックされます。**システム設定 → プライバシーとセキュリティ** を開き、
+   一番下の Clipy の項目で **「このまま開く」** を押してから再度起動（旧 macOS では右クリック →「開く」）
+3. アクセシビリティを許可: **システム設定 → プライバシーとセキュリティ → アクセシビリティ**。
+   以前のビルドの項目が残っていれば削除してから Clipy.app を追加して有効化。
+   毎回同じ証明書で署名しているため、**アップデート後もこの許可は維持され、再許可は不要**です。
 
 ## 動作環境
 - Apple Silicon Mac (M1/M2/M3/M4 以降) 専用
