@@ -12,14 +12,13 @@
 
 import Cocoa
 import Dependencies
-import LoginServiceKit
 import Magnet
 import RxCocoa
 import RxSwift
 import Screeen
+import ServiceManagement
 import Sparkle
 
-@NSApplicationMain
 class AppDelegate: NSObject, NSMenuItemValidation {
 
     // MARK: - Properties
@@ -34,20 +33,8 @@ class AppDelegate: NSObject, NSMenuItemValidation {
     private var pasteboardHistoryRepository
     @Dependency(\.snippetRepository)
     private var snippetRepository
-    private let migration = DatabaseMigration()
-
-    // MARK: - Init
-    override func awakeFromNib() {
-        super.awakeFromNib()
-        // If the SQLite database file does not exist yet, start the database and then migrate Realm data to SQLiteData.
-        let sqliteDatabaseExists = (try? SQLiteDataDatabase.databaseURL().checkResourceIsReachable()) ?? false
-        prepareDependencies { values in
-            try! values.bootstrapDatabase()
-            if !sqliteDatabaseExists {
-                migration.migrateFromRealmToSQLiteData()
-            }
-        }
-    }
+    @Dependency(\.firebase)
+    private var firebase
 
     // MARK: - NSMenuItem Validation
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
@@ -132,26 +119,12 @@ class AppDelegate: NSObject, NSMenuItemValidation {
         if alert.runModal() == NSApplication.ModalResponse.alertFirstButtonReturn {
             AppEnvironment.current.defaults.set(true, forKey: Constants.UserDefaults.loginItem)
             AppEnvironment.current.defaults.synchronize()
-            reflectLoginItemState()
         }
         // Do not show this message again
         if alert.suppressionButton?.state == NSControl.StateValue.on {
             AppEnvironment.current.defaults.set(true, forKey: Constants.UserDefaults.suppressAlertForLoginItem)
             AppEnvironment.current.defaults.synchronize()
         }
-    }
-
-    private func toggleAddingToLoginItems(_ isEnable: Bool) {
-        if isEnable {
-            LoginServiceKit.addLoginItems()
-        } else {
-            LoginServiceKit.removeLoginItems()
-        }
-    }
-
-    private func reflectLoginItemState() {
-        let isInLoginItems = AppEnvironment.current.defaults.bool(forKey: Constants.UserDefaults.loginItem)
-        toggleAddingToLoginItems(isInLoginItems)
     }
 }
 
@@ -167,9 +140,9 @@ extension AppDelegate: NSApplicationDelegate {
         guard context != .test else { return }
 
         // SDKs
-        CPYUtilities.initSDKs()
+        firebase.configure()
         // Check Accessibility Permission
-        AppEnvironment.current.accessibilityService.isAccessibilityEnabled(isPrompt: true)
+        Accessibility.isAccessibilityEnabled(isPrompt: true)
 
         // Show Login Item
         if !AppEnvironment.current.defaults.bool(forKey: Constants.UserDefaults.loginItem) && !AppEnvironment.current.defaults.bool(forKey: Constants.UserDefaults.suppressAlertForLoginItem) {
@@ -215,8 +188,14 @@ private extension AppDelegate {
         // Login Item
         AppEnvironment.current.defaults.rx.observe(Bool.self, Constants.UserDefaults.loginItem, retainSelf: false)
             .compactMap { $0 }
-            .subscribe(onNext: { [weak self] _ in
-                self?.reflectLoginItemState()
+            .subscribe(onNext: { isEnabled in
+                if isEnabled {
+                    guard SMAppService.mainApp.status != .enabled else { return }
+                    try? SMAppService.mainApp.register()
+                } else {
+                    guard SMAppService.mainApp.status != .notRegistered else { return }
+                    try? SMAppService.mainApp.unregister()
+                }
             })
             .disposed(by: disposeBag)
         // Observe Screenshot
